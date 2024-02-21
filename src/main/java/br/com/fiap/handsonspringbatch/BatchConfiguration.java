@@ -6,6 +6,7 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -13,6 +14,7 @@ import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourc
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -31,10 +33,13 @@ import javax.sql.DataSource;
 public class BatchConfiguration {
 
     @Bean
-    public Job processarPerson(JobRepository jobRepository, Step step) {
+    public Job processarPerson(JobRepository jobRepository,
+                               Step step,
+                               Step step2) {
         return new JobBuilder("processarPerson", jobRepository)
                 .incrementer(new RunIdIncrementer())
                 .start(step)
+                .next(step2)
                 .build();
     }
 
@@ -51,6 +56,24 @@ public class BatchConfiguration {
                 .writer(itemWriter)
                 .taskExecutor(new SimpleAsyncTaskExecutor())
                 .build();
+    }
+
+    @Bean
+    public Step step2(JobRepository jobRepository,
+                      PlatformTransactionManager platformTransactionManager,
+                      Tasklet tasklet) {
+        return new StepBuilder("log4fun", jobRepository)
+                .tasklet(tasklet, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Tasklet tasklet() {
+        return (contribution, chunkContext) -> {
+            System.out.println("Vamos esperar 10 segundos");
+            Thread.sleep(10000);
+            return RepeatStatus.FINISHED;
+        };
     }
 
     @Bean
