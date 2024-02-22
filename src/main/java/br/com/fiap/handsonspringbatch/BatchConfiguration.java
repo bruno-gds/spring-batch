@@ -2,7 +2,10 @@ package br.com.fiap.handsonspringbatch;
 
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.job.builder.FlowBuilder;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.job.flow.Flow;
+import org.springframework.batch.core.job.flow.support.SimpleFlow;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -34,12 +37,11 @@ public class BatchConfiguration {
 
     @Bean
     public Job processarPerson(JobRepository jobRepository,
-                               Step step,
-                               Step step2) {
+                               Flow splitFlow) {
         return new JobBuilder("processarPerson", jobRepository)
                 .incrementer(new RunIdIncrementer())
-                .start(step)
-                .next(step2)
+                .start(splitFlow)
+                .end()
                 .build();
     }
 
@@ -104,5 +106,19 @@ public class BatchConfiguration {
     @Bean
     public ItemProcessor<Person, Person> itemProcessor() {
         return new PersonProcessor();
+    }
+
+    @Bean
+    public Flow splitFlow(Step step, Step step2) {
+        return new FlowBuilder<SimpleFlow>("splitFlow")
+                .split(new SimpleAsyncTaskExecutor())
+                .add(flow(step), flow(step2))
+                .build();
+    }
+
+    private SimpleFlow flow(Step step) {
+        return new FlowBuilder<SimpleFlow>("simpleFlow")
+                .start(step)
+                .build();
     }
 }
